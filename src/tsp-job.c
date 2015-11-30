@@ -80,7 +80,7 @@ int get_job (struct tsp_queue *q, tsp_path_t p, int *hops, int *len, uint64_t *v
    q->nb --;
    if (affiche_progress)
      printf("<!- %d / %d %% ->\n",q->nb, q->nbmax);
-
+   
    return 1;
 } 
 

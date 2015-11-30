@@ -1,5 +1,5 @@
 #ifndef TSP_HKBOUND_H
-#define TSPHKBOUND_H
+#define TSP_HKBOUND_H
 
 #ifdef __cplusplus
 extern "C" {
