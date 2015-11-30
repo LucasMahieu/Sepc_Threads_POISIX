@@ -2,3 +2,5 @@
 *.o
 src/lpsolveurs.h
 build/
+doc/
+tags
