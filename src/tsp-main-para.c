@@ -263,7 +263,7 @@ int main (int argc, char **argv)
 		// DEBUT DE ZONE A DISTIBUER
 		// ////////////////////////////
 		i=0;
-		while( current_nb_thread < nb_threads+1 ){
+		while( current_nb_thread < nb_threads ){
 
 			arguments[i].q = &q;
 			memcpy(arguments[i].solution,solution, MAX_TOWNS*sizeof(int));
