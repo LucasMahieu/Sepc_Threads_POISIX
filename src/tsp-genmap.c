@@ -34,7 +34,8 @@ static int trie_entier (const void *a, const void *b) {
 }
 
 /* initialisation du tableau des distances */
-void genmap () {
+void genmap ()
+{
 
     int i, j;
     int dx, dy;

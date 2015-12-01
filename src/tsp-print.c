@@ -29,7 +29,8 @@ void print_distance_matrix (bool svg)
 
 
 /* Affichage d'une solution possible. */
-void print_solution (tsp_path_t path, int len) {
+void print_solution (tsp_path_t path, int len) 
+{
   fprintf (stderr, "found path len = %3d :", len);
   for (int i = 0; i < nb_towns; i++) {
     fprintf (stderr, "%2d ", path[i]);
@@ -37,7 +38,8 @@ void print_solution (tsp_path_t path, int len) {
   fprintf (stderr, "\n") ;
 }
 
-void print_solution_svg (tsp_path_t path, int len) {
+void print_solution_svg (tsp_path_t path, int len)
+{
   printf ("<!-- found path len = %3d -->\n", len);
   printf ("<svg viewBox='-10 -10 120 120'\n\
  xmlns='http://www.w3.org/2000/svg'>\n\

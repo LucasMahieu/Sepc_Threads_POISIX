@@ -9,7 +9,7 @@
 #include <complex.h>
 #include <stdbool.h>
 #include <unistd.h>
-
+#include <pthread.h>
 #include "tsp-types.h"
 #include "tsp-job.h"
 #include "tsp-genmap.h"
@@ -34,6 +34,8 @@ int nb_towns=10;
 long int myseed= 0;
 /* nombre de threads */
 int nb_threads=1;
+/* Nombre de thread en court */
+int current_nb_thread = 0;
 
 /* affichage SVG */
 bool affiche_sol= false;
@@ -79,7 +81,7 @@ static void generate_tsp_jobs (struct tsp_queue *q, int hops, int len, uint64_t 
 		int me = path [hops - 1];        
 		for (int i = 0; i < nb_towns; i++) {
 			if (!present (i, hops, path, vpres)) {
-				path[hops] = i;
+				path[hops] = i;:TagsGenerate
 				vpres |= (1<<i);
 				int dist = tsp_distance[me][i];
 				generate_tsp_jobs (q, hops + 1, len + dist, vpres, path, cuts, sol, sol_len, depth);
@@ -93,6 +95,56 @@ static void usage(const char *name) {
 	fprintf (stderr, "Usage: %s [-s] <ncities> <seed> <nthreads>\n", name);
 	exit (-1);
 }
+/////////////////////////////////////
+//Fonction exécuter par les threads
+void work(void* arg){
+	struct tsp_queue* q = arg.q;
+	tsp_path_t solution = arg.solution;
+	uint64_t* vpres = arg.vpres;
+	long long int* cuts = arg.cuts;
+	tsp_path_t sol = arg.sol;
+	int* sol_len = arg.sol_len;
+
+	// DEBUT DE ZONE A DISTIBUER
+	// ////////////////////////////
+	int min = getMin();
+	int hops = 0, len = 0;
+	// A faire en exlu, fait
+	get_job (q, solution, &hops, &len, vpres);
+
+	// le noeud est moins bon que la solution courante
+	if (min < INT_MAX
+		&& (nb_towns - hops) > 10
+		&& ( (lower_bound_using_hk(solution, hops, len, *vpres)) >= min ||
+		(lower_bound_using_lp(solution, hops, len, *vpres)) >= min)
+	){ return; }
+
+	// Si le noeud est meilleur que la sol courante 
+	// Faire attention au ressource, cuts et sol et sol_len protegé
+	tsp(hops, len, *vpres, solution, cuts, sol, sol_len);
+
+	pthread_mutex_lock(&arg.mutex);
+	*arg.sol_len = *sol_len;
+	memcpy(arg.sol, arg.path, nb_towns*sizeof(int)); 
+	*arg.cuts = *cuts;
+	current_nb_thread--;
+	pthread_mutex_unlock(&arg.mutex);
+	return;
+}
+// FIN DE ZONE A DISTIBUER 
+///////////////////////////////
+}
+
+struct args {
+	struct tsp_queue* q;
+	tsp_path_t solution;
+	uint64_t* vpres;
+	long long int *cuts;
+	tsp_path_t sol;
+	int* sol_len;
+	pthread_mutex_t mutex;
+}
+
 
 int main (int argc, char **argv)
 {
@@ -104,6 +156,8 @@ int main (int argc, char **argv)
 	long long int cuts = 0;
 	struct tsp_queue q;
 	struct timespec t1, t2;
+	// Compteur de boucle threads
+	int i=0;
 
 	/* lire les arguments */
 	int opt;
@@ -133,6 +187,20 @@ int main (int argc, char **argv)
 	assert(nb_towns > 0);
 	assert(nb_threads > 0);
 
+	// Creation des threads :
+	pthread_t thread_tid[];
+	pthread_mutex_t mutex_thread;
+	pthread_mutex_init(&mutex_thread,NULL);
+	
+	struct args arguments[];
+	if(( thread_tid = (pthread_t*)calloc(nb_threads,sizeof(*thread_tid)) )==NULL){
+		printf("calloc thread_tid error\n");
+		return -1;
+	}
+	if(( arguments = (struct args*)calloc(nb_threads,sizeof(*arguments)) )==NULL){
+		printf("calloc struct args error\n");
+		return -1;
+	}
 	minimum = INT_MAX;
 
 	/* generer la carte et la matrice de distance */
@@ -154,27 +222,32 @@ int main (int argc, char **argv)
 	no_more_jobs (&q);
 
 	/* calculer chacun des travaux */
+	//tsp-path_t est un tableau de distance
 	tsp_path_t solution;
 	memset (solution, -1, MAX_TOWNS * sizeof (int));
 	solution[0] = 0;
 	while (!empty_queue (&q)) {
-// DEBUT DE ZONE A DISTIBUER
-// ////////////////////////////
-		int hops = 0, len = 0;
-		get_job (&q, solution, &hops, &len, &vpres);
+		// DEBUT DE ZONE A DISTIBUER
+		// ////////////////////////////
+		i=0;
+		while( current_nb_thread < nb_threads+1 ){
 
-		// le noeud est moins bon que la solution courante
-		if (minimum < INT_MAX
-			&& (nb_towns - hops) > 10
-			&& ( (lower_bound_using_hk(solution, hops, len, vpres)) >= minimum ||
-			   	(lower_bound_using_lp(solution, hops, len, vpres)) >= minimum)
-		   ){
-			continue;
+			arguments[i].q = &q;
+			arguments[i].solution = solution;
+			arguments[i].vpres = &vpres;
+			arguments[i].cuts = &cuts;
+			arguments[i].sol = sol;
+			arguments[i].sol_len = &sol_len;
+			arguments[i].mutex = &mutex_thread;
+			
+			pthread_create(&threads_pid[i],NULL,work, (void*)&arguments[i] );
+			current_nb_tread ++;
+			i++;
+
 		}
-		// Si le noeud est meilleur que la sol courante 
-		tsp(hops, len, vpres, solution, &cuts, sol, &sol_len);
-// FIN DE ZONE A DISTIBUER 
-///////////////////////////////
+		//work(&q, solution, &vpres, &cuts, sol, &sol_len);
+		// FIN DE ZONE A DISTIBUER 
+		///////////////////////////////
 	}
 
 	//    clock_gettime(CLOCK_REALTIME, &t2);
