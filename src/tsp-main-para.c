@@ -132,7 +132,7 @@ void work(void* arg){
 	int min = getMin();
 	int hops = 0, len = 0;
 	// A faire en exlu, fait
-	get_job (A.q, A.solution, &hops, len, A.vpres);
+	get_job (A.q, A.solution, &hops, &len, A.vpres);
 
 	// le noeud est moins bon que la solution courante
 	if (min < INT_MAX
@@ -294,5 +294,7 @@ int main (int argc, char **argv)
 			nb_towns, myseed, sol_len, nb_threads,
 			perf/1000000ll, perf%1000000ll, cuts);
 
+    free(thread_tid);
+    free(arguments);
 	return 0 ;
 }
