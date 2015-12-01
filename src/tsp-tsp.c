@@ -15,7 +15,6 @@ int minimum;
 //A UTILISER QU'AVEC SET et GET
 //ZONE DE PROTECTION DU MINIMUM
 pthread_mutex_t mutex_get_min;
-pthread_mutex_init(&mutex_get_min,NULL);
 int getMin(){
 	return minimum;
 }
@@ -39,9 +38,7 @@ int present (int city, int hops, tsp_path_t path, uint64_t vpres)
 }
 
 pthread_mutex_t mutex_tsp;
-pthread_mutex_init(&mutex_tsp,NULL);
 pthread_mutex_t mutex_tsp2;
-pthread_mutex_init(&mutex_tsp2,NULL);
 void tsp (int hops, int len, uint64_t vpres, tsp_path_t path, long long int *cuts, tsp_path_t sol, int *sol_len)
 {
 	// On fait la cpy locale du minimum 

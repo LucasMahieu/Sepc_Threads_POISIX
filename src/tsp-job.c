@@ -61,7 +61,6 @@ void add_job (struct tsp_queue *q, tsp_path_t p, int hops, int len, uint64_t vpr
 // Pas de soucis de perte de temps car aucun calcule n'est fait ici
 // On récupère juste les info sur un jobs et on décale le suivant
 pthread_mutex_t mutex_get_job;
-pthread_mutex_init(&mutex_get_job,NULL);
 int get_job (struct tsp_queue *q, tsp_path_t p, int *hops, int *len, uint64_t *vpres) {
 
 	pthread_mutex_lock(&mutex_get_job);

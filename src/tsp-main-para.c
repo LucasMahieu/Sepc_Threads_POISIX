@@ -189,8 +189,26 @@ int main (int argc, char **argv)
 
 	// Creation des threads :
 	pthread_t thread_tid[];
+    /* Céation et init des mutex*/
 	pthread_mutex_t mutex_thread;
-	pthread_mutex_init(&mutex_thread,NULL);
+    if(pthread_mutex_init(&mutex_thread,NULL)){
+        printf("errorinit  mutex_thread");
+        return EXIT_FAILURE;
+    }
+    if(pthread_mutex_init(&mutex_get_job,NULL)){
+        printf("error mutex init get_job");
+        return EXIT_FAILURE;
+    }
+
+   if(pthread_mutex_init(&mutex_tsp,NULL)){
+        printf("error mutex init tsp");
+        return EXIT_FAILURE;
+    if(pthread_mutex_init(&mutex_get_min,NULL)){
+        printf("error mutex init get_min");
+        return EXIT_FAILURE;
+    if(pthread_mutex_init(&mutex_tsp2,NULL)){
+        printf("error mutex init tsp2");
+        return EXIT_FAILURE;
 	
 	struct args arguments[];
 	if(( thread_tid = (pthread_t*)calloc(nb_threads,sizeof(*thread_tid)) )==NULL){
