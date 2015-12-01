@@ -42,6 +42,24 @@ bool affiche_sol= false;
 bool affiche_progress=false;
 bool quiet=false;
 
+/* Structure à passer en argument du thread */
+typedef struct args {
+	struct tsp_queue* q;
+	tsp_path_t solution;
+	uint64_t* vpres;
+	long long int *cuts;
+	tsp_path_t sol;
+	int* sol_len;
+	pthread_mutex_t *mutex;
+} args;
+
+// mutex
+extern pthread_mutex_t mutex_get_job;
+extern pthread_mutex_t mutex_get_min;
+extern pthread_mutex_t mutex_tsp;
+extern pthread_mutex_t mutex_tsp2;
+
+
 // Pour pouvoir avoir un éuivalant de clock_gettime sur mac.
 // Pour mac activer le define 
 // Pour linux commenter le define
@@ -52,6 +70,7 @@ bool quiet=false;
 #endif
 
 
+void current_utc_time(struct timespec *ts);
 void current_utc_time(struct timespec *ts) {
 
 #ifdef __MACH__ // OS X does not have clock_gettime, use clock_get_time
@@ -81,7 +100,7 @@ static void generate_tsp_jobs (struct tsp_queue *q, int hops, int len, uint64_t 
 		int me = path [hops - 1];        
 		for (int i = 0; i < nb_towns; i++) {
 			if (!present (i, hops, path, vpres)) {
-				path[hops] = i;:TagsGenerate
+				path[hops] = i;
 				vpres |= (1<<i);
 				int dist = tsp_distance[me][i];
 				generate_tsp_jobs (q, hops + 1, len + dist, vpres, path, cuts, sol, sol_len, depth);
@@ -98,51 +117,44 @@ static void usage(const char *name) {
 /////////////////////////////////////
 //Fonction exécuter par les threads
 void work(void* arg){
-	struct tsp_queue* q = arg.q;
-	tsp_path_t solution = arg.solution;
-	uint64_t* vpres = arg.vpres;
-	long long int* cuts = arg.cuts;
-	tsp_path_t sol = arg.sol;
-	int* sol_len = arg.sol_len;
+    /*
+	struct tsp_queue* q = *(args *)arg.q;
+	tsp_path_t solution = *(args *)arg.solution;
+	uint64_t* vpres = *(args *)arg.vpres;
+	long long int* cuts = *(args *)arg.cuts;
+	tsp_path_t sol = *(args *)arg.sol;
+	int* sol_len = *(args *)arg.sol_len;
+    */
+    args A = *(args*)arg;
 
 	// DEBUT DE ZONE A DISTIBUER
 	// ////////////////////////////
 	int min = getMin();
 	int hops = 0, len = 0;
 	// A faire en exlu, fait
-	get_job (q, solution, &hops, &len, vpres);
+	get_job (A.q, A.solution, &hops, len, A.vpres);
 
 	// le noeud est moins bon que la solution courante
 	if (min < INT_MAX
 		&& (nb_towns - hops) > 10
-		&& ( (lower_bound_using_hk(solution, hops, len, *vpres)) >= min ||
-		(lower_bound_using_lp(solution, hops, len, *vpres)) >= min)
+		&& ( (lower_bound_using_hk(A.solution, hops, len, *(A.vpres))) >= min ||
+		(lower_bound_using_lp(A.solution, hops, len, *(A.vpres))) >= min)
 	){ return; }
 
 	// Si le noeud est meilleur que la sol courante 
 	// Faire attention au ressource, cuts et sol et sol_len protegé
-	tsp(hops, len, *vpres, solution, cuts, sol, sol_len);
+	tsp(hops, len, *(A.vpres), A.solution, A.cuts, A.sol, A.sol_len);
 
-	pthread_mutex_lock(&arg.mutex);
+	/*pthread_mutex_lock(A.mutex);
 	*arg.sol_len = *sol_len;
 	memcpy(arg.sol, arg.path, nb_towns*sizeof(int)); 
 	*arg.cuts = *cuts;
 	current_nb_thread--;
 	pthread_mutex_unlock(&arg.mutex);
+    */
 	return;
-}
 // FIN DE ZONE A DISTIBUER 
 ///////////////////////////////
-}
-
-struct args {
-	struct tsp_queue* q;
-	tsp_path_t solution;
-	uint64_t* vpres;
-	long long int *cuts;
-	tsp_path_t sol;
-	int* sol_len;
-	pthread_mutex_t mutex;
 }
 
 
@@ -188,7 +200,7 @@ int main (int argc, char **argv)
 	assert(nb_threads > 0);
 
 	// Creation des threads :
-	pthread_t thread_tid[];
+	pthread_t* thread_tid;
     /* Céation et init des mutex*/
 	pthread_mutex_t mutex_thread;
     if(pthread_mutex_init(&mutex_thread,NULL)){
@@ -203,20 +215,23 @@ int main (int argc, char **argv)
    if(pthread_mutex_init(&mutex_tsp,NULL)){
         printf("error mutex init tsp");
         return EXIT_FAILURE;
+   }
     if(pthread_mutex_init(&mutex_get_min,NULL)){
         printf("error mutex init get_min");
         return EXIT_FAILURE;
+    }
     if(pthread_mutex_init(&mutex_tsp2,NULL)){
         printf("error mutex init tsp2");
         return EXIT_FAILURE;
+    }
 	
-	struct args arguments[];
+	args* arguments;
 	if(( thread_tid = (pthread_t*)calloc(nb_threads,sizeof(*thread_tid)) )==NULL){
 		printf("calloc thread_tid error\n");
 		return -1;
 	}
-	if(( arguments = (struct args*)calloc(nb_threads,sizeof(*arguments)) )==NULL){
-		printf("calloc struct args error\n");
+	if(( arguments = (args*)calloc(nb_threads,sizeof(*arguments)) )==NULL){
+		printf("calloc  args error\n");
 		return -1;
 	}
 	minimum = INT_MAX;
@@ -251,15 +266,15 @@ int main (int argc, char **argv)
 		while( current_nb_thread < nb_threads+1 ){
 
 			arguments[i].q = &q;
-			arguments[i].solution = solution;
+			memcpy(arguments[i].solution,solution, MAX_TOWNS*sizeof(int));
 			arguments[i].vpres = &vpres;
 			arguments[i].cuts = &cuts;
-			arguments[i].sol = sol;
+			memcpy(arguments[i].sol, sol, MAX_TOWNS*sizeof(int));
 			arguments[i].sol_len = &sol_len;
 			arguments[i].mutex = &mutex_thread;
 			
-			pthread_create(&threads_pid[i],NULL,work, (void*)&arguments[i] );
-			current_nb_tread ++;
+			pthread_create(&thread_tid[i],NULL,work, &(arguments[i]) );
+			current_nb_thread ++;
 			i++;
 
 		}
