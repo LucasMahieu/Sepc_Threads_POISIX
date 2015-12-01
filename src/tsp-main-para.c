@@ -116,7 +116,7 @@ static void usage(const char *name) {
 }
 /////////////////////////////////////
 //Fonction exécuter par les threads
-void work(void* arg){
+void* work(void* arg){
     /*
 	struct tsp_queue* q = *(args *)arg.q;
 	tsp_path_t solution = *(args *)arg.solution;
@@ -139,20 +139,21 @@ void work(void* arg){
 		&& (nb_towns - hops) > 10
 		&& ( (lower_bound_using_hk(A.solution, hops, len, *(A.vpres))) >= min ||
 		(lower_bound_using_lp(A.solution, hops, len, *(A.vpres))) >= min)
-	){ return; }
+	){ return NULL; }
 
 	// Si le noeud est meilleur que la sol courante 
 	// Faire attention au ressource, cuts et sol et sol_len protegé
 	tsp(hops, len, *(A.vpres), A.solution, A.cuts, A.sol, A.sol_len);
 
-	/*pthread_mutex_lock(A.mutex);
+	/*
 	*arg.sol_len = *sol_len;
 	memcpy(arg.sol, arg.path, nb_towns*sizeof(int)); 
 	*arg.cuts = *cuts;
-	current_nb_thread--;
-	pthread_mutex_unlock(&arg.mutex);
     */
-	return;
+    pthread_mutex_lock(A.mutex);
+	current_nb_thread--;
+	pthread_mutex_unlock(A.mutex);
+	return NULL;
 // FIN DE ZONE A DISTIBUER 
 ///////////////////////////////
 }
