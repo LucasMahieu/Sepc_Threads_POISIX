@@ -126,11 +126,12 @@ void* work(void* arg){
 	int* sol_len = *(args *)arg.sol_len;
     */
     args A = *(args*)arg;
+	int min = getMin();
+	while (!empty_queue (&q)) {
+	int hops = 0, len = 0;
 
 	// DEBUT DE ZONE A DISTIBUER
 	// ////////////////////////////
-	int min = getMin();
-	int hops = 0, len = 0;
 	// A faire en exlu, fait
 	pthread_mutex_lock(&mutex_get_job);
 	get_job (A.q, A.solution, &hops, &len, A.vpres);
@@ -145,16 +146,8 @@ void* work(void* arg){
 
 	// Si le noeud est meilleur que la sol courante 
 	// Faire attention au ressource, cuts et sol et sol_len protegé
-	tsp(hops, len, *(A.vpres), A.solution, A.cuts, A.sol, A.sol_len);
+	tsp(hops, len, *(A.vpres), A.solution, A.cuts, A.sol, A.sol_len, &min);
 
-	/*
-	*arg.sol_len = *sol_len;
-	memcpy(arg.sol, arg.path, nb_towns*sizeof(int)); 
-	*arg.cuts = *cuts;
-    */
-    pthread_mutex_lock(A.mutex);
-	current_nb_thread--;
-	pthread_mutex_unlock(A.mutex);
 	return NULL;
 // FIN DE ZONE A DISTIBUER 
 ///////////////////////////////
@@ -204,6 +197,7 @@ int main (int argc, char **argv)
 
 	// Creation des threads :
 	pthread_t* thread_tid;
+	void *status;
     /* Céation et init des mutex*/
 	pthread_mutex_t mutex_thread;
     if(pthread_mutex_init(&mutex_thread,NULL)){
@@ -228,11 +222,15 @@ int main (int argc, char **argv)
         return EXIT_FAILURE;
     }
 	
-	args* arguments;
 	if(( thread_tid = (pthread_t*)calloc(nb_threads,sizeof(*thread_tid)) )==NULL){
 		printf("calloc thread_tid error\n");
 		return -1;
 	}
+	if(( status = (void*)calloc(nb_threads,sizeof(*status)) )==NULL){
+		printf("calloc status error\n");
+		return -1;
+	}
+	args* arguments;
 	if(( arguments = (args*)calloc(nb_threads,sizeof(*arguments)) )==NULL){
 		printf("calloc  args error\n");
 		return -1;
@@ -262,29 +260,25 @@ int main (int argc, char **argv)
 	tsp_path_t solution;
 	memset (solution, -1, MAX_TOWNS * sizeof (int));
 	solution[0] = 0;
-	while (!empty_queue (&q)) {
-		// DEBUT DE ZONE A DISTIBUER
-		// ////////////////////////////
-		i=0;
-		while( current_nb_thread < nb_threads ){
+	// DEBUT DE ZONE A DISTIBUER
+	// ////////////////////////////
+	for (i=0; i<nb_thread; i++){
+		arguments[i].q = &q;
+		memcpy(arguments[i].solution,solution, MAX_TOWNS*sizeof(int));
+		arguments[i].vpres = &vpres;
+		arguments[i].cuts = &cuts;
+		memcpy(arguments[i].sol, sol, MAX_TOWNS*sizeof(int));
+		arguments[i].sol_len = &sol_len;
+		arguments[i].mutex = &mutex_thread;
 
-			arguments[i].q = &q;
-			memcpy(arguments[i].solution,solution, MAX_TOWNS*sizeof(int));
-			arguments[i].vpres = &vpres;
-			arguments[i].cuts = &cuts;
-			memcpy(arguments[i].sol, sol, MAX_TOWNS*sizeof(int));
-			arguments[i].sol_len = &sol_len;
-			arguments[i].mutex = &mutex_thread;
-			
-			pthread_create(&thread_tid[i],NULL,work, &(arguments[i]) );
-			current_nb_thread ++;
-			i++;
+		pthread_create(&thread_tid[i],NULL,work, &(arguments[i]) );
 
-		}
-		//work(&q, solution, &vpres, &cuts, sol, &sol_len);
-		// FIN DE ZONE A DISTIBUER 
-		///////////////////////////////
 	}
+	for(i=O; i<nb_thread; i++){
+		pthread_join(thread_tid+i,status+i);
+	}
+	// FIN DE ZONE A DISTIBUER 
+	///////////////////////////////
 
 	//    clock_gettime(CLOCK_REALTIME, &t2);
 	current_utc_time(&t2);
@@ -297,7 +291,7 @@ int main (int argc, char **argv)
 			nb_towns, myseed, sol_len, nb_threads,
 			perf/1000000ll, perf%1000000ll, cuts);
 
-    free(thread_tid);
-    free(arguments);
+	free(thread_tid);
+	free(arguments);
 	return 0 ;
 }
