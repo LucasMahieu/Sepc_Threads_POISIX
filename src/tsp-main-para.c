@@ -23,7 +23,7 @@
 #define TIME_DIFF(t1, t2) \
 	((t2.tv_sec - t1.tv_sec) * 1000000000ll + (long long int) (t2.tv_nsec - t1.tv_nsec))
 
-#define REFRESH_MIN_RATE 1
+#define REFRESH_MIN_RATE 0
 /* tableau des distances */
 tsp_distance_matrix_t tsp_distance ={};
 
