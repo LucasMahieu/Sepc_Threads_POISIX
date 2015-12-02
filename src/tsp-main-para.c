@@ -23,6 +23,7 @@
 #define TIME_DIFF(t1, t2) \
 	((t2.tv_sec - t1.tv_sec) * 1000000000ll + (long long int) (t2.tv_nsec - t1.tv_nsec))
 
+#define REFRESH_MIN_RATE 1
 /* tableau des distances */
 tsp_distance_matrix_t tsp_distance ={};
 
@@ -129,8 +130,8 @@ void* work(void* arg){
 	int min_loc = getMin();
 	tsp_path_t sol_loc;
 	uint64_t vpres_loc=1;
-	memcpy(sol_local, A.solution,nb_thread*sizeof(int));
-	while (!empty_queue (&q)) {
+	memcpy(sol_loc, A.solution,nb_threads*sizeof(int));
+	while (!empty_queue (A.q)) {
 	int hops = 0, len = 0;
 	
 	// DEBUT DE ZONE A DISTIBUER
@@ -141,9 +142,9 @@ void* work(void* arg){
 	pthread_mutex_unlock(&mutex_get_job);
 
 	// le noeud est moins bon que la solution courante
-	if (min < INT_MAX
+	if (min_loc < INT_MAX
 		&& (nb_towns - hops) > 10
-		&& ( (lower_bound_using_hk(sol_loc, hops, len, vpres)) >= min_loc ||
+		&& ( (lower_bound_using_hk(sol_loc, hops, len, vpres_loc)) >= min_loc ||
 		(lower_bound_using_lp(sol_loc, hops, len, vpres_loc)) >= min_loc)
 	){ return NULL; }
 
@@ -154,7 +155,7 @@ void* work(void* arg){
 	if( nb_jobs_finished == REFRESH_MIN_RATE ){
 		nb_jobs_finished = 0;
 		setMin(min_loc);
-		int m getMin(); 
+		int m =getMin(); 
 		if(m<min_loc) min_loc = m; 
 	}
 	nb_jobs_finished ++;
@@ -208,7 +209,7 @@ int main (int argc, char **argv)
 
 	// Creation des threads :
 	pthread_t* thread_tid;
-	void *status;
+	void **status;
     /* Céation et init des mutex*/
 	pthread_mutex_t mutex_thread;
     if(pthread_mutex_init(&mutex_thread,NULL)){
@@ -237,7 +238,7 @@ int main (int argc, char **argv)
 		printf("calloc thread_tid error\n");
 		return -1;
 	}
-	if(( status = (void*)calloc(nb_threads,sizeof(*status)) )==NULL){
+	if(( status = (void**)calloc(nb_threads,sizeof(*status)) )==NULL){
 		printf("calloc status error\n");
 		return -1;
 	}
@@ -262,7 +263,7 @@ int main (int argc, char **argv)
 	path[0] = 0;
 
 	/* mettre les travaux dans la file d'attente */
-	generate_tsp_jobs (&q, 1, 0, vpres, path, &cuts, sol, &sol_len, 3);
+	generate_tsp_jobs (&q, 1, 0, 1, path, &cuts, sol, &sol_len, 3);
 	no_more_jobs (&q);
 
 	/* calculer chacun des travaux */
@@ -272,7 +273,7 @@ int main (int argc, char **argv)
 	solution[0] = 0;
 	// DEBUT DE ZONE A DISTIBUER
 	// ////////////////////////////
-	for (i=0; i<nb_thread; i++){
+	for (i=0; i<nb_threads; i++){
 		arguments[i].q = &q;
 		memcpy(arguments[i].solution,solution, MAX_TOWNS*sizeof(int));
 		arguments[i].cuts = &cuts;
@@ -283,8 +284,8 @@ int main (int argc, char **argv)
 		pthread_create(&thread_tid[i],NULL,work, &(arguments[i]) );
 
 	}
-	for(i=O; i<nb_thread; i++){
-		pthread_join(thread_tid+i,status+i);
+	for(i=0; i<nb_threads; i++){
+		pthread_join(thread_tid[i],&status[i]);
 	}
 	// FIN DE ZONE A DISTIBUER 
 	///////////////////////////////

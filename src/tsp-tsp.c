@@ -81,7 +81,7 @@ void tsp (int hops, int len, uint64_t vpres, tsp_path_t path, long long int *cut
 	if (hops == nb_towns) {
 		int me = path [hops - 1];
 		int dist = tsp_distance[me][0]; // retourner en 0
-		if (len + dist < min){
+		if (len + dist < *min_loc){
 			//Cpy du nouveau min dans la variable locale min_loc
 		// Sécurisation de sol_len(pas besoin) et de sol(besoin)
 			pthread_mutex_lock(&mutex_tsp2);
