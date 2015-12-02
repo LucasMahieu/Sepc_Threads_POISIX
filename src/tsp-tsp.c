@@ -11,12 +11,16 @@
 
 /* dernier minimum trouvé */
 int minimum;
+#define REFRESH_MIN_RATE 1
 /////////////////////////////////////////
 //A UTILISER QU'AVEC SET et GET
 //ZONE DE PROTECTION DU MINIMUM
 pthread_mutex_t mutex_get_min;
 int getMin(){
-	return minimum;
+	pthread_mutex_lock(&mutex_get_min);
+	int m = minimum;
+	pthread_mutex_unlock(&mutex_get_min);
+	return m;
 }
 void setMin(int m){
 	pthread_mutex_lock(&mutex_get_min);
@@ -39,12 +43,11 @@ int present (int city, int hops, tsp_path_t path, uint64_t vpres)
 
 pthread_mutex_t mutex_tsp;
 pthread_mutex_t mutex_tsp2;
-void tsp (int hops, int len, uint64_t vpres, tsp_path_t path, long long int *cuts, tsp_path_t sol, int *sol_len, int* min_loc)
+void tsp (int hops, int len, uint64_t vpres, tsp_path_t path, long long int *cuts, tsp_path_t sol, int *sol_len,int* min_loc)
 {
 	// On fait la cpy locale du minimum 
 	// et si on trouve mieux on en fera la cpy en exclu mutuelle 
-	int min = getMin();
-	if (len + cutprefix[(nb_towns-hops)] >= min) {
+	if (len + cutprefix[(nb_towns-hops)] >= *min_loc) {
 		// Sécurisation de cuts
 		pthread_mutex_lock(&mutex_tsp);
 		(*cuts)++ ;
@@ -54,7 +57,7 @@ void tsp (int hops, int len, uint64_t vpres, tsp_path_t path, long long int *cut
 
 	/* calcul de l'arbre couvrant comme borne inférieure */
 	if ((nb_towns - hops) > 6 &&
-			lower_bound_using_hk(path, hops, len, vpres) >= min) {
+			lower_bound_using_hk(path, hops, len, vpres) >= *min_loc) {
 		// Sécurisation de cuts
 		pthread_mutex_lock(&mutex_tsp);
 		(*cuts)++ ;
@@ -66,7 +69,7 @@ void tsp (int hops, int len, uint64_t vpres, tsp_path_t path, long long int *cut
 	/* un rayon de coupure à 15, pour ne pas lancer la programmation
 	   linéaire pour les petits arbres, plus rapide à calculer sans */
 	if ((nb_towns - hops) > 22
-			&& lower_bound_using_lp(path, hops, len, vpres) >= min) {
+			&& lower_bound_using_lp(path, hops, len, vpres) >= *min_loc) {
 		// Sécurisation de cuts
 		pthread_mutex_lock(&mutex_tsp);
 		(*cuts)++ ;
@@ -74,16 +77,16 @@ void tsp (int hops, int len, uint64_t vpres, tsp_path_t path, long long int *cut
 		return;
 	}
 
-
+	// Cas ou c'est une solution retenue
 	if (hops == nb_towns) {
 		int me = path [hops - 1];
 		int dist = tsp_distance[me][0]; // retourner en 0
 		if (len + dist < min){
-			//Cpy du nouveau min dans la variable globale en exclu mutuelle
-			setMin(len + dist); //minimum = len + dist;
+			//Cpy du nouveau min dans la variable locale min_loc
 		// Sécurisation de sol_len(pas besoin) et de sol(besoin)
 			pthread_mutex_lock(&mutex_tsp2);
 			*sol_len = len + dist;
+			*min_loc = len + dist; //minimum = len + dist;
 			memcpy(sol, path, nb_towns*sizeof(int));
 			pthread_mutex_unlock(&mutex_tsp2);
 			if (!quiet)
@@ -97,7 +100,7 @@ void tsp (int hops, int len, uint64_t vpres, tsp_path_t path, long long int *cut
 				path[hops] = i;
 				vpres |= (1<<i);
 				int dist = tsp_distance[me][i];
-				tsp (hops + 1, len + dist, vpres, path, cuts, sol, sol_len);
+				tsp (hops + 1, len + dist, vpres, path, cuts, sol, sol_len, min_loc);
 				vpres &= (~(1<<i));
 			}
 		}

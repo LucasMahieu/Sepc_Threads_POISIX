@@ -46,7 +46,6 @@ bool quiet=false;
 typedef struct args {
 	struct tsp_queue* q;
 	tsp_path_t solution;
-	uint64_t* vpres;
 	long long int *cuts;
 	tsp_path_t sol;
 	int* sol_len;
@@ -125,29 +124,42 @@ void* work(void* arg){
 	tsp_path_t sol = *(args *)arg.sol;
 	int* sol_len = *(args *)arg.sol_len;
     */
+	int nb_jobs_finished = 0;
     args A = *(args*)arg;
-	int min = getMin();
+	int min_loc = getMin();
+	tsp_path_t sol_loc;
+	uint64_t vpres_loc=1;
+	memcpy(sol_local, A.solution,nb_thread*sizeof(int));
 	while (!empty_queue (&q)) {
 	int hops = 0, len = 0;
-
+	
 	// DEBUT DE ZONE A DISTIBUER
 	// ////////////////////////////
 	// A faire en exlu, fait
 	pthread_mutex_lock(&mutex_get_job);
-	get_job (A.q, A.solution, &hops, &len, A.vpres);
+	get_job (A.q, sol_loc, &hops, &len, &vpres_loc);
 	pthread_mutex_unlock(&mutex_get_job);
 
 	// le noeud est moins bon que la solution courante
 	if (min < INT_MAX
 		&& (nb_towns - hops) > 10
-		&& ( (lower_bound_using_hk(A.solution, hops, len, *(A.vpres))) >= min ||
-		(lower_bound_using_lp(A.solution, hops, len, *(A.vpres))) >= min)
+		&& ( (lower_bound_using_hk(sol_loc, hops, len, vpres)) >= min_loc ||
+		(lower_bound_using_lp(sol_loc, hops, len, vpres_loc)) >= min_loc)
 	){ return NULL; }
 
 	// Si le noeud est meilleur que la sol courante 
 	// Faire attention au ressource, cuts et sol et sol_len protegé
-	tsp(hops, len, *(A.vpres), A.solution, A.cuts, A.sol, A.sol_len, &min);
+	tsp(hops, len, vpres_loc, sol_loc, A.cuts, A.sol, A.sol_len, &min_loc);
 
+	if( nb_jobs_finished == REFRESH_MIN_RATE ){
+		nb_jobs_finished = 0;
+		setMin(min_loc);
+		int m getMin(); 
+		if(m<min_loc) min_loc = m; 
+	}
+	nb_jobs_finished ++;
+	}
+	setMin(min_loc);
 	return NULL;
 // FIN DE ZONE A DISTIBUER 
 ///////////////////////////////
@@ -158,7 +170,6 @@ int main (int argc, char **argv)
 {
 	unsigned long long perf;
 	tsp_path_t path;
-	uint64_t vpres=0;
 	tsp_path_t sol;
 	int sol_len;
 	long long int cuts = 0;
@@ -249,10 +260,9 @@ int main (int argc, char **argv)
 
 	memset (path, -1, MAX_TOWNS * sizeof (int));
 	path[0] = 0;
-	vpres=1;
 
 	/* mettre les travaux dans la file d'attente */
-	generate_tsp_jobs (&q, 1, 0, vpres, path, &cuts, sol, & sol_len, 3);
+	generate_tsp_jobs (&q, 1, 0, vpres, path, &cuts, sol, &sol_len, 3);
 	no_more_jobs (&q);
 
 	/* calculer chacun des travaux */
@@ -265,10 +275,9 @@ int main (int argc, char **argv)
 	for (i=0; i<nb_thread; i++){
 		arguments[i].q = &q;
 		memcpy(arguments[i].solution,solution, MAX_TOWNS*sizeof(int));
-		arguments[i].vpres = &vpres;
 		arguments[i].cuts = &cuts;
 		memcpy(arguments[i].sol, sol, MAX_TOWNS*sizeof(int));
-		arguments[i].sol_len = &sol_len;
+		//arguments[i].sol_len = &sol_len;
 		arguments[i].mutex = &mutex_thread;
 
 		pthread_create(&thread_tid[i],NULL,work, &(arguments[i]) );
@@ -283,6 +292,7 @@ int main (int argc, char **argv)
 	//    clock_gettime(CLOCK_REALTIME, &t2);
 	current_utc_time(&t2);
 
+	sol_len = getMin();
 	if (affiche_sol)
 		print_solution_svg (sol, sol_len);
 
