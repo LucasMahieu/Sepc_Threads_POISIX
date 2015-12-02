@@ -132,7 +132,9 @@ void* work(void* arg){
 	int min = getMin();
 	int hops = 0, len = 0;
 	// A faire en exlu, fait
+	pthread_mutex_lock(&mutex_get_job);
 	get_job (A.q, A.solution, &hops, &len, A.vpres);
+	pthread_mutex_unlock(&mutex_get_job);
 
 	// le noeud est moins bon que la solution courante
 	if (min < INT_MAX

@@ -63,7 +63,6 @@ void add_job (struct tsp_queue *q, tsp_path_t p, int hops, int len, uint64_t vpr
 pthread_mutex_t mutex_get_job;
 int get_job (struct tsp_queue *q, tsp_path_t p, int *hops, int *len, uint64_t *vpres) {
 
-	pthread_mutex_lock(&mutex_get_job);
 	struct tsp_cell *ptr;
 
 	if (q->first == 0) {
@@ -88,7 +87,6 @@ int get_job (struct tsp_queue *q, tsp_path_t p, int *hops, int *len, uint64_t *v
 	if (affiche_progress)
 		printf("<!- %d / %d %% ->\n",q->nb, q->nbmax);
 
-	pthread_mutex_unlock(&mutex_get_job);
 	return 1;
 } 
 

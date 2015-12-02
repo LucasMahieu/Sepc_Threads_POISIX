@@ -80,7 +80,7 @@ void tsp (int hops, int len, uint64_t vpres, tsp_path_t path, long long int *cut
 		int dist = tsp_distance[me][0]; // retourner en 0
 		if (len + dist < min){
 			//Cpy du nouveau min dans la variable globale en exclu mutuelle
-			setMin(len + dist);
+			setMin(len + dist); //minimum = len + dist;
 		// Sécurisation de sol_len(pas besoin) et de sol(besoin)
 			pthread_mutex_lock(&mutex_tsp2);
 			*sol_len = len + dist;
