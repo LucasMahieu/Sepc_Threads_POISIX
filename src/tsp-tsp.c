@@ -88,9 +88,10 @@ void tsp (int hops, int len, uint64_t vpres, tsp_path_t path, long long int *cut
 			*sol_len = len + dist;
 			*min_loc = len + dist; //minimum = len + dist;
 			memcpy(sol, path, nb_towns*sizeof(int));
-			pthread_mutex_unlock(&mutex_tsp2);
-			if (!quiet)
+			if (!quiet){
 				print_solution (path, len+dist);
+        }
+			pthread_mutex_unlock(&mutex_tsp2);
 		}
 	} 
 	else {

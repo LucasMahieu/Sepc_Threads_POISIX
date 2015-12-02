@@ -278,7 +278,7 @@ int main (int argc, char **argv)
 		memcpy(arguments[i].solution,solution, MAX_TOWNS*sizeof(int));
 		arguments[i].cuts = &cuts;
 		memcpy(arguments[i].sol, sol, MAX_TOWNS*sizeof(int));
-		//arguments[i].sol_len = &sol_len;
+		arguments[i].sol_len = &sol_len;
 		arguments[i].mutex = &mutex_thread;
 
 		pthread_create(&thread_tid[i],NULL,work, &(arguments[i]) );
