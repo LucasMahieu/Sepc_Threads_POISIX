@@ -90,7 +90,7 @@ void tsp (int hops, int len, uint64_t vpres, tsp_path_t path, long long int *cut
 			memcpy(sol, path, nb_towns*sizeof(int));
 			if (!quiet){
 				print_solution (path, len+dist);
-        }
+            }
 			pthread_mutex_unlock(&mutex_tsp2);
 		}
 	} 
