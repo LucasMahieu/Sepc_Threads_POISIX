@@ -302,6 +302,11 @@ int main (int argc, char **argv)
 			nb_towns, myseed, sol_len, nb_threads,
 			perf/1000000ll, perf%1000000ll, cuts);
 
+	pthread_mutex_destroy(&mutex_thread);
+	pthread_mutex_destroy(&mutex_tsp);
+	pthread_mutex_destroy(&mutex_tsp2);
+	pthread_mutex_destroy(&mutex_get_job);
+	pthread_mutex_destroy(&mutex_get_min);
 	free(thread_tid);
 	free(arguments);
 	return 0 ;
